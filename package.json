@@ -1,0 +1,54 @@
+{
+  "name": "claude-context-optimizer",
+  "version": "1.0.0",
+  "description": "MCP Server that reduces Claude Code token consumption by up to 84% using intelligent caching, semantic indexing, and session memory",
+  "author": "Azozz ALFiras <https://github.com/AzozzALFiras>",
+  "license": "MIT",
+  "main": "dist/server/index.js",
+  "bin": {
+    "claude-context-optimizer": "dist/server/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "install.sh"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "dev": "ts-node src/server/index.ts",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist",
+    "benchmark": "ts-node --esm tests/benchmark.ts"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "claude-code",
+    "token-optimization",
+    "context-optimizer",
+    "model-context-protocol",
+    "ai-tools",
+    "token-reduction"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AzozzALFiras/claude-context-optimizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AzozzALFiras/claude-context-optimizer/issues"
+  },
+  "homepage": "https://github.com/AzozzALFiras/claude-context-optimizer#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
