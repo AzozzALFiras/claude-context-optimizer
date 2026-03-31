@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "ES2022",
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -13,7 +13,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "bundler",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
