@@ -4,6 +4,7 @@
   "description": "MCP Server that reduces Claude Code token consumption by up to 84% using intelligent caching, semantic indexing, and session memory",
   "author": "Azozz ALFiras <https://github.com/AzozzALFiras>",
   "license": "MIT",
+  "type": "module",
   "main": "dist/server/index.js",
   "bin": {
     "claude-context-optimizer": "dist/server/index.js"
@@ -41,12 +42,12 @@
   },
   "homepage": "https://github.com/AzozzALFiras/claude-context-optimizer#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "@types/node": "^25.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~6.0.2"
   },
   "engines": {
     "node": ">=18.0.0"
