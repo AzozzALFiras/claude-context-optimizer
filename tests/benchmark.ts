@@ -17,6 +17,7 @@ import { SmartReadTool }         from '../dist/tools/smart-read/SmartReadTool.js
 import { FunctionExtractorTool } from '../dist/tools/function-extractor/FunctionExtractorTool.js';
 import { ProjectMapTool }        from '../dist/tools/project-map/ProjectMapTool.js';
 import { BulkSearchTool }        from '../dist/tools/bulk-search/BulkSearchTool.js';
+import { SymbolIndexTool }       from '../dist/tools/symbol-index/SymbolIndexTool.js';
 import { CacheManager }          from '../dist/engines/cache/CacheManager.js';
 import { SessionMemory }         from '../dist/engines/session/SessionMemory.js';
 import { TokenEstimator }        from '../dist/utils/token/TokenEstimator.js';
@@ -167,6 +168,29 @@ async function run(): Promise<void> {
     results.push({ tool: 'bulk_search', before: estimatedAllFiles, after: afterTok,
                    saved: estimatedAllFiles - afterTok, pct, timing });
     console.log('  ── bulk_search output ────────────────────────────────────────');
+    console.log(result.content);
+    console.log();
+  }
+
+  // ── 7. symbol_index (find a definition without reading files) ─────────────
+  {
+    // "before" = approximate cost of reading every .ts source file in src/ to
+    // locate where TokenEstimator is defined.
+    const allSourceTok = 18_000; // ~17 .ts files in src/
+    const tool         = new SymbolIndexTool();
+
+    // Build the index first (one-time cost, amortized across many lookups).
+    const t0 = Date.now();
+    tool.execute({ action: 'rebuild', root_path: PROJECT, force: true });
+    const result = tool.execute({ action: 'find', name: 'TokenEstimator', root_path: PROJECT });
+    const timing = Date.now() - t0;
+
+    const afterTok = tokens(result.content);
+    const pct      = TokenEstimator.savingsPercent(allSourceTok, afterTok);
+
+    results.push({ tool: 'symbol_index (find)', before: allSourceTok, after: afterTok,
+                   saved: allSourceTok - afterTok, pct, timing });
+    console.log('  ── symbol_index find output ──────────────────────────────────');
     console.log(result.content);
     console.log();
   }

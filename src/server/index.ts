@@ -23,6 +23,7 @@ import { FunctionExtractorTool }  from '../tools/function-extractor/FunctionExtr
 import { SessionSnapshotTool }    from '../tools/session-snapshot/SessionSnapshotTool.js';
 import { TaskManagerTool }        from '../tools/task-manager/TaskManagerTool.js';
 import { ContextWatchdogTool }    from '../tools/context-watchdog/ContextWatchdogTool.js';
+import { SymbolIndexTool }        from '../tools/symbol-index/SymbolIndexTool.js';
 import { SERVER_NAME, SERVER_VERSION } from '../config/constants.js';
 
 // Shared singletons — one DB connection per process
@@ -43,6 +44,7 @@ const tools = {
   session_snapshot:   new SessionSnapshotTool(session),
   task_manager:       new TaskManagerTool(session),
   context_watchdog:   new ContextWatchdogTool(session),
+  symbol_index:       new SymbolIndexTool(),
 };
 
 const server = new Server(
@@ -225,6 +227,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
     },
+    {
+      name:        'symbol_index',
+      description: 'Project-wide "where is X defined?" index. Build once, then look up any function/class/type by name in ~30 tokens per match — no file reads. Persists across sessions; incremental re-index skips unchanged files.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          action:    { type: 'string', enum: ['find', 'outline', 'rebuild', 'refresh', 'stats'], description: 'find: locate definitions by name | outline: list all symbols in one file | rebuild: full project re-scan | refresh: re-index a single file | stats: index summary' },
+          name:      { type: 'string', description: 'Symbol name to look up (find action)' },
+          file_path: { type: 'string', description: 'Absolute file path (outline / refresh)' },
+          root_path: { type: 'string', description: 'Project root (default: cwd)' },
+          kind:      { type: 'string', enum: ['function', 'class', 'method', 'interface', 'type', 'enum', 'const'], description: 'Filter by symbol kind (find action)' },
+          language:  { type: 'string', description: 'Filter by language e.g. "typescript", "python"' },
+          limit:     { type: 'number', description: 'Max matches to return (default: 20)' },
+          force:     { type: 'boolean', description: 'Force re-parse even if file hash unchanged' },
+          auto_index:{ type: 'boolean', description: 'On `find`/`outline`: auto-build the index if empty (default: true)' },
+        },
+        required: ['action'],
+      },
+    },
   ],
 }));
 
@@ -271,6 +292,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'context_watchdog':
         result = tools.context_watchdog.execute(safeArgs as Parameters<ContextWatchdogTool['execute']>[0]);
+        break;
+      case 'symbol_index':
+        result = tools.symbol_index.execute(safeArgs as Parameters<SymbolIndexTool['execute']>[0]);
         break;
       default:
         return {
