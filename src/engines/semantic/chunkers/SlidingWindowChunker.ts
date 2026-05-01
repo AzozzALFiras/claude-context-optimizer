@@ -2,6 +2,8 @@
 // https://github.com/AzozzALFiras/claude-context-optimizer
 
 import type { FileChunk } from '../../../models/FileRecord.js';
+import { BM25 } from '../../../utils/text/BM25.js';
+import { IdentifierTokenizer } from '../../../utils/text/IdentifierTokenizer.js';
 
 export class SlidingWindowChunker {
   private windowSize: number;
@@ -31,50 +33,23 @@ export class SlidingWindowChunker {
     return chunks;
   }
 
-  // Score chunks against a query using keyword frequency
+  // Score chunks against a query with BM25 + identifier-aware tokenization.
   scoreAgainstQuery(chunks: FileChunk[], query: string): FileChunk[] {
-    const keywords = SlidingWindowChunker.extractKeywords(query);
-
-    return chunks.map(chunk => ({
-      ...chunk,
-      relevanceScore: SlidingWindowChunker.computeScore(chunk.content, keywords),
-    })).sort((a, b) => b.relevanceScore - a.relevanceScore);
-  }
-
-  private static extractKeywords(query: string): string[] {
-    return query
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !SlidingWindowChunker.isStopWord(w));
-  }
-
-  private static computeScore(content: string, keywords: string[]): number {
-    if (keywords.length === 0) return 0;
-    const lower = content.toLowerCase();
-    let score   = 0;
-
-    for (const keyword of keywords) {
-      let pos = lower.indexOf(keyword);
-      while (pos !== -1) {
-        score++;
-        pos = lower.indexOf(keyword, pos + 1);
-      }
+    if (chunks.length === 0) return [];
+    const queryTerms = IdentifierTokenizer.tokenizeQuery(query);
+    if (queryTerms.length === 0) {
+      return chunks.map(c => ({ ...c, relevanceScore: 0 }));
     }
 
-    // Boost for exact phrase match
-    const phrase = keywords.join(' ');
-    if (lower.includes(phrase)) score += keywords.length * 3;
+    const docs = chunks.map((c, i) => ({
+      id:     String(i),
+      tokens: IdentifierTokenizer.tokenizeDocument(c.content),
+    }));
+    const scorer = new BM25();
+    scorer.fit(docs);
 
-    return score;
-  }
-
-  private static isStopWord(word: string): boolean {
-    const stopWords = new Set([
-      'the', 'and', 'for', 'this', 'that', 'with', 'from',
-      'have', 'not', 'are', 'was', 'what', 'how', 'can',
-      'does', 'get', 'set', 'use', 'via',
-    ]);
-    return stopWords.has(word);
+    return chunks
+      .map((c, i) => ({ ...c, relevanceScore: scorer.score(queryTerms, docs[i]) }))
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
   }
 }

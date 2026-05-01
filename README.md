@@ -1,6 +1,6 @@
 # Claude Context Optimizer
 
-> **Cut Claude Code token consumption by up to 98%** — proven by real benchmark, not estimates.
+> **Cut Claude Code token consumption by up to 97%** — proven by real benchmark, not estimates.
 
 **By [Azozz ALFiras](https://github.com/AzozzALFiras)**
 
@@ -8,23 +8,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-compatible-blue)](https://modelcontextprotocol.io)
-[![Token Savings](https://img.shields.io/badge/token%20savings-98%25-success)](./README.md#real-benchmark-results)
+[![Token Savings](https://img.shields.io/badge/token%20savings-97%25-success)](./README.md#real-benchmark-results)
+[![Tools](https://img.shields.io/badge/tools-13-blueviolet)](./README.md#the-13-tools)
 
 ---
 
 ## Real Benchmark Results
 
-> These numbers are **not estimates**. They were produced by running the actual tools against real files on a real machine. Every number in this section can be reproduced by cloning the repo and running `node tests/benchmark.js`.
+> These numbers are **not estimates**. They were produced by running the actual tools against real files on a real machine. Every number in this section can be reproduced by cloning the repo and running `npm run benchmark`.
 
 ### Test environment
 
 | | |
 |---|---|
-| **Date** | 2026-03-31 |
+| **Date** | 2026-05-01 |
 | **Platform** | macOS 15 (Darwin 25.3) · Apple Silicon |
-| **Node.js** | v24.9.0 |
-| **Test files** | `tests/fixtures/sample.log` (85 lines) · `tests/fixtures/AuthService.ts` (120 lines) |
-| **Project** | This repo (39 source files, ~3,000 lines) |
+| **Node.js** | v24.x |
+| **Test files** | `tests/fixtures/sample.log` (84 lines) · `tests/fixtures/AuthService.ts` (137 lines) |
+| **Project** | This repo (45+ source files, ~3,500 lines) |
 
 ---
 
@@ -32,16 +33,17 @@
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
-  │  Tool               Before (tokens)   After (tokens)   Saved    %  │
+  │  Tool                Before (tokens)   After (tokens)   Saved    %  │
   ├─────────────────────────────────────────────────────────────────────┤
-  │  compress_logs              1,508             597       911    60%  │
-  │  compress_logs (5k sim)    50,000             597    49,403    99%  │
-  │  smart_read                 4,980              57     4,923    99%  │
-  │  function_extractor         1,245             249       996    80%  │
-  │  project_map               95,000             815    94,185    99%  │
-  │  bulk_search               50,000           2,284    47,716    95%  │
+  │  compress_logs               1,508             597       911    60%  │
+  │  smart_read (1st read)       1,245              64     1,181    95%  │
+  │  smart_read (cache hit)      1,245              64     1,181    95%  │
+  │  function_extractor          1,245             249       996    80%  │
+  │  project_map                95,000           1,012    93,988    99%  │
+  │  bulk_search                50,000           2,331    47,669    95%  │
+  │  symbol_index (find)        18,000              44    17,956   100%  │
   ├─────────────────────────────────────────────────────────────────────┤
-  │  TOTAL                    202,733           4,599   198,134    98%  │
+  │  TOTAL                     168,243           4,361   163,882    97%  │
   └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,12 +52,12 @@
 ```
   Token consumption — before vs after
 
-  Before  ████████████████████████████████████████  202,733 tokens  (100%)
-  After   █                                            4,599 tokens  (  2%)
+  Before  ████████████████████████████████████████  168,243 tokens  (100%)
+  After   █                                            4,361 tokens  (  3%)
 
   ┌────────────────────────────────────────────────────────────────┐
   │                                                                │
-  │   98% of tokens never reach Claude's context window.          │
+  │   97% of tokens never reach Claude's context window.          │
   │   They were noise. We removed the noise.                       │
   │                                                                │
   └────────────────────────────────────────────────────────────────┘
@@ -69,27 +71,29 @@
   ┌──────────────────┬────────────────┬────────────────┬────────────────┐
   │  Session scale   │  Without       │  With          │  Saved         │
   ├──────────────────┼────────────────┼────────────────┼────────────────┤
-  │  1 session       │  $3.041        │  $0.069        │  $2.972        │
-  │  10 sessions/day │  $30.41        │  $0.69         │  $29.72        │
-  │  100 sessions    │  $304.10       │  $6.90         │  $297.20       │
-  │  1,000 sessions  │  $3,041.00     │  $69.00        │  $2,972.00     │
+  │  1 session       │  $2.524        │  $0.065        │  $2.459        │
+  │  10 sessions/day │  $25.24        │  $0.65         │  $24.59        │
+  │  100 sessions    │  $252.40       │  $6.50         │  $245.90       │
+  │  1,000 sessions  │  $2,524.00     │  $65.00        │  $2,459.00     │
   └──────────────────┴────────────────┴────────────────┴────────────────┘
 
-  A team of 10 developers doing 5 sessions/day saves ~$1,486/day.
+  A team of 10 developers doing 5 sessions/day saves ~$1,229/day.
 ```
 
 ### Execution speed
 
 ```
-  All tools run in under 35ms.
-  Most run in under 5ms.
-  No background processes. No startup delay.
+  All tools run in well under 250ms.
+  Most run in under 5ms. The only "slow" path is the one-time symbol
+  index build, which then makes every subsequent lookup ~free.
 
-  compress_logs     ██  1ms
-  smart_read        ████  4ms
-  function_extractor ██  1ms
-  project_map       ██████████████████████████████████  33ms  ← walks disk
-  bulk_search       ████  5ms
+  compress_logs        ██  2ms
+  smart_read           ███  1ms
+  function_extractor   ██  2ms
+  project_map          ██████████  12ms       ← walks disk
+  bulk_search          ███  3ms
+  symbol_index (build) ████████████████████████████████  224ms  ← one-time
+  symbol_index (find)  █  <1ms                                    ← persistent
 ```
 
 ### What the tools actually returned
@@ -108,9 +112,11 @@ WARN:  Response time degradation: avg 450ms
 WARN:  Disk usage critical: 94%
 ```
 
-**function_extractor** on `AuthService.ts` (120 lines, ~1,245 tokens) with `name: "login"` returned only the `login()` function — **249 tokens** instead of **1,245**. The other 11 methods, imports, and irrelevant code were not returned.
+**function_extractor** on `AuthService.ts` (137 lines, ~1,245 tokens) with `name: "login"` returned only the `login()` function — **249 tokens** instead of **1,245**. The other 11 methods, imports, and irrelevant code were not returned.
 
-**project_map** on the entire repository returned a structured map of all 39 files across all directories in **815 tokens** — instead of reading every file which would cost **~95,000 tokens**.
+**project_map** on the entire repository returned a structured map of all 45+ files across all directories in **~1,000 tokens** — instead of reading every file which would cost **~95,000 tokens**.
+
+**symbol_index** answered "where is `TokenEstimator` defined?" in **44 tokens** (one record, file:line, signature) — instead of the ~18,000 tokens it would take to read every `.ts` file in `src/` to find that one definition.
 
 ---
 
@@ -213,9 +219,9 @@ In a 20-turn conversation, Claude may read `config.ts` 8 times. If the file neve
 
 Log files, lock files, generated files — these are read with the same attention as hand-written source code. A 5,000-line log file might contain 3 relevant errors. The other 4,997 lines are pure token waste.
 
-### The three engines we built
+### The four engines we built
 
-We built three distinct engines to address each root cause separately:
+We built four distinct engines to address each root cause:
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -225,13 +231,14 @@ We built three distinct engines to address each root cause separately:
 ║  ┌─────────────────────────────────────────────────────────┐    ║
 ║  │  ENGINE 1 — FileCache          fixes: Root Cause 2      │    ║
 ║  │                                                         │    ║
-║  │   file.ts ──► stat (mtime+size) ──► hash match?        │    ║
-║  │                                          │              │    ║
-║  │                                    yes ──┤── no         │    ║
-║  │                                    │         │          │    ║
-║  │                              "unchanged"  full read     │    ║
-║  │                              0 tokens     + cache       │    ║
-║  │   Storage: SQLite WAL (non-blocking, ACID, indexed)     │    ║
+║  │   file.ts ──► sha-256 hash ──► hash match?              │    ║
+║  │                                       │                 │    ║
+║  │                                 yes ──┤── no            │    ║
+║  │                                 │         │             │    ║
+║  │                           "unchanged"  full read        │    ║
+║  │                           0 tokens     + cache          │    ║
+║  │   Storage: single JSON file via process-singleton store │    ║
+║  │   (zero native compilation — works on Node 18 → 24)     │    ║
 ║  └─────────────────────────────────────────────────────────┘    ║
 ║                                                                  ║
 ║  ┌─────────────────────────────────────────────────────────┐    ║
@@ -242,8 +249,11 @@ We built three distinct engines to address each root cause separately:
 ║  │   .go/.rs/.java ──► regex parser  ──► signatures        │    ║
 ║  │   .md/.yaml/txt ──► sliding window ──► paragraphs       │    ║
 ║  │                          │                              │    ║
-║  │                    RelevanceScorer                      │    ║
-║  │              (keyword freq + identifier bonus)          │    ║
+║  │           RelevanceScorer (BM25 + identifier tokens)    │    ║
+║  │       — IDF: rare names outweigh common ones            │    ║
+║  │       — TF saturation: bursty repeats don't dominate    │    ║
+║  │       — camelCase / snake_case splitter:                │    ║
+║  │           query "auth" finds AuthService                │    ║
 ║  │                          │                              │    ║
 ║  │                  top N chunks ≤ token budget            │    ║
 ║  └─────────────────────────────────────────────────────────┘    ║
@@ -255,7 +265,19 @@ We built three distinct engines to address each root cause separately:
 ║  │   Turn 2: read utils.ts → session: { auth.ts, utils }  │    ║
 ║  │   Turn 5: "auth.ts again?" → hash unchanged → 0 tokens │    ║
 ║  │                                                         │    ║
-║  │   Also powers: context_budget, session_snapshot         │    ║
+║  │   Also powers: context_budget, session_snapshot,        │    ║
+║  │                task_manager, context_watchdog           │    ║
+║  └─────────────────────────────────────────────────────────┘    ║
+║                                                                  ║
+║  ┌─────────────────────────────────────────────────────────┐    ║
+║  │  ENGINE 4 — SymbolIndex        fixes: Root Cause 1      │    ║
+║  │                                                         │    ║
+║  │   one-time scan ──► every function/class/type/method   │    ║
+║  │                     stored as { name, kind, file, line }│    ║
+║  │                          │                              │    ║
+║  │   "Where is X defined?" → ~30 tokens / hit               │    ║
+║  │   Per-file hash: unchanged files skip re-parse          │    ║
+║  │   Survives across sessions; auto-rebuilds when empty    │    ║
 ║  └─────────────────────────────────────────────────────────┘    ║
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
@@ -281,8 +303,9 @@ We built three distinct engines to address each root cause separately:
   │                                                             │
   │  Step 3: SemanticIndex.query("AuthService.ts", "login")    │
   │          └─► ASTChunker finds: login(), validateToken()    │
-  │          └─► RelevanceScorer ranks: login (score 14)       │
-  │                                     validateToken (score 3) │
+  │          └─► BM25 + identifier tokens score:              │
+  │              login           → 7.42  (rare term, exact id) │
+  │              validateToken   → 1.31                        │
   │                                                             │
   │  Step 4: fitInBudget(chunks, 2000 tokens)                  │
   │          └─► returns login() function only = 180 tokens    │
@@ -310,32 +333,38 @@ The project follows a strict separation of concerns. No folder contains two diff
   ┌──────────────────────────▼───────────────────────────────────┐
   │                src/server/index.ts                           │
   │         (route → tool, format output, error boundary)        │
-  └──┬───┬───┬───┬───┬───┬───┬───┬───┬──────────────────────────┘
-     │   │   │   │   │   │   │   │   │
-     ▼   ▼   ▼   ▼   ▼   ▼   ▼   ▼   ▼         TOOLS LAYER
-  compress smart file  proj ctx  bulk recall dep  fn   snap
-  _logs    _read _diff _map budg srch _file graph ext  shot
-     │       │                         │      │
-     │       ├────────────────────────►│      │   ENGINES LAYER
-     │       │                                │
-     ▼       ▼                                ▼
-  ┌──────────────────┐   ┌────────────────────────┐
-  │  SemanticIndex   │   │    SessionMemory        │
-  │  ┌────────────┐  │   │  ┌──────────────────┐  │
-  │  │ ASTChunker │  │   │  │  SQLite (WAL)    │  │
-  │  │ SlideWin   │  │   │  │  session_files   │  │
-  │  └────────────┘  │   │  └──────────────────┘  │
-  │  ┌────────────┐  │   └────────────────────────┘
-  │  │TS/Py/Gen   │  │
-  │  │ Parsers    │  │        ┌────────────────────────┐
-  │  └────────────┘  │        │    CacheManager        │
-  └──────────────────┘        │  ┌──────────────────┐  │
-                              │  │  FileCache        │  │
-          UTILS LAYER         │  │  SQLite (WAL)     │  │
-  ┌────────────────────────┐  │  └──────────────────┘  │
-  │  HashUtil  │  Token    │  └────────────────────────┘
-  │  Platform  │  Estimator│
-  └────────────────────────┘
+  └─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─────────────────────────────────────┘
+    │ │ │ │ │ │ │ │ │ │ │ │ │
+    ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼                       TOOLS LAYER (13)
+  cmpr smrt file proj ctxb blk rcll dep fn snap task ctxw symb
+  _log _rd _dif _map _bdg _sr _fil _gr _ex _sht _mgr _wd  _idx
+    │   │              │       │   │   │   │   │   │   │   │
+    │   ├────┐    ┌────┘       │   │   │   │   │   │   │   │
+    │   │    │    │            │   │   │   │   │   │   │   │      ENGINES
+    ▼   ▼    ▼    ▼            ▼   ▼   ▼   ▼   ▼   ▼   ▼   ▼
+  ┌────────────────┐  ┌──────────────┐  ┌───────────────┐  ┌──────────────┐
+  │ SemanticIndex  │  │ CacheManager │  │ SessionMemory │  │ SymbolIndex  │
+  │ ┌────────────┐ │  │ ┌──────────┐ │  │ + Snapshot    │  │ + per-file   │
+  │ │ ASTChunker │ │  │ │ FileCache│ │  │ + TaskStore   │  │   hash skip  │
+  │ │ SlideWin   │ │  │ └──────────┘ │  └───────────────┘  └──────────────┘
+  │ └────────────┘ │  └──────────────┘            │                  │
+  │ ┌────────────┐ │            │                 │                  │
+  │ │TS/Py/Gen   │ │            └─────────────────┴──────────────────┘
+  │ │ Parsers    │ │                              │
+  │ └────────────┘ │                              ▼
+  │ ┌────────────┐ │                  ┌────────────────────────┐
+  │ │RelevSscorer│ │                  │     JsonStore          │
+  │ │  (BM25)    │ │                  │  process-singleton —   │
+  │ └────────────┘ │                  │  one in-memory copy    │
+  └────────────────┘                  │  shared by every       │
+                                      │  engine                │
+                                      └────────────────────────┘
+
+           UTILS LAYER
+  ┌──────────────────────────────────────────────┐
+  │  HashUtil   Token       Identifier   BM25    │
+  │  Platform   Estimator   Tokenizer            │
+  └──────────────────────────────────────────────┘
 ```
 
 ```
@@ -351,6 +380,8 @@ claude-context-optimizer/
 │   ├── models/                    ← Pure TypeScript interfaces (no logic)
 │   │   ├── FileRecord.ts          ← File cache record shapes
 │   │   ├── SessionRecord.ts       ← Session and snapshot shapes
+│   │   ├── TaskRecord.ts          ← Task checkpoints + watchdog
+│   │   ├── Symbol.ts              ← Symbol index entries
 │   │   └── ToolResult.ts          ← All tool return types
 │   │
 │   ├── utils/
@@ -358,16 +389,25 @@ claude-context-optimizer/
 │   │   │   └── HashUtil.ts        ← SHA-256 file hashing + fast stat path
 │   │   ├── platform/
 │   │   │   └── PlatformUtil.ts    ← Mac/Windows/Linux path resolution
-│   │   └── token/
-│   │       └── TokenEstimator.ts  ← Fast token counting without tiktoken
+│   │   ├── token/
+│   │   │   └── TokenEstimator.ts  ← Fast token counting without tiktoken
+│   │   └── text/
+│   │       ├── IdentifierTokenizer.ts ← camelCase / snake_case splitter
+│   │       └── BM25.ts                ← BM25 ranking (IDF + TF saturation)
 │   │
 │   ├── engines/
+│   │   ├── store/
+│   │   │   └── JsonStore.ts       ← Process-singleton persistence layer
 │   │   ├── cache/
-│   │   │   ├── FileCache.ts       ← SQLite read/write layer (raw DB ops)
+│   │   │   ├── FileCache.ts       ← Per-file hash + summary records
 │   │   │   └── CacheManager.ts    ← High-level: read + cache + invalidate
 │   │   ├── session/
 │   │   │   ├── SessionMemory.ts   ← Track files read per session
 │   │   │   └── SnapshotManager.ts ← Save/restore session snapshots
+│   │   ├── tasks/
+│   │   │   └── TaskStore.ts       ← Persisted task checkpoints
+│   │   ├── symbols/
+│   │   │   └── SymbolIndex.ts     ← Project-wide symbol index
 │   │   └── semantic/
 │   │       ├── parsers/
 │   │       │   ├── LogParser.ts          ← Any log format → structured entries
@@ -376,34 +416,27 @@ claude-context-optimizer/
 │   │       │   └── GenericParser.ts      ← Go/Rust/Java/C#/Ruby fallback
 │   │       ├── chunkers/
 │   │       │   ├── ASTChunker.ts         ← Chunk code by semantic units
-│   │       │   └── SlidingWindowChunker.ts ← Chunk text by sliding window
+│   │       │   └── SlidingWindowChunker.ts ← Chunk text + BM25 scoring
 │   │       └── SemanticIndex.ts   ← Query interface: file + query → chunks
 │   │
-│   └── tools/
-│       ├── compress-logs/
-│       │   ├── PatternMatcher.ts       ← Log pattern detection + normalization
-│       │   └── CompressLogsTool.ts     ← Tool implementation
-│       ├── smart-read/
-│       │   ├── RelevanceScorer.ts      ← Score chunks against query
-│       │   └── SmartReadTool.ts        ← Tool implementation
-│       ├── file-diff/
-│       │   └── FileDiffTool.ts
-│       ├── project-map/
-│       │   ├── FileTreeBuilder.ts      ← Walk + describe project structure
-│       │   └── ProjectMapTool.ts       ← Tool implementation
-│       ├── context-budget/
-│       │   ├── TokenCounter.ts         ← Analyze + recommend
-│       │   └── ContextBudgetTool.ts    ← Tool implementation
-│       ├── bulk-search/
-│       │   └── BulkSearchTool.ts
-│       ├── recall-file/
-│       │   └── RecallFileTool.ts
-│       ├── dependency-graph/
-│       │   └── DependencyGraphTool.ts
-│       ├── function-extractor/
-│       │   └── FunctionExtractorTool.ts
-│       └── session-snapshot/
-│           └── SessionSnapshotTool.ts
+│   └── tools/                     ← 13 MCP tools, each in its own folder
+│       ├── compress-logs/         ← Strip noise from log files
+│       ├── smart-read/            ← Query-aware file read
+│       ├── file-diff/             ← `git diff` only
+│       ├── project-map/           ← One-shot project overview
+│       ├── context-budget/        ← What's eating your context?
+│       ├── bulk-search/           ← Regex across project (3-tier disclosure)
+│       ├── recall-file/           ← Already-read & unchanged?
+│       ├── dependency-graph/      ← Imports / imported-by
+│       ├── function-extractor/    ← One symbol body by name
+│       ├── session-snapshot/      ← Save / restore session
+│       ├── task-manager/          ← Multi-step plan + checkpoint + resume
+│       ├── context-watchdog/      ← Predictive token-fill alerts
+│       └── symbol-index/          ← "Where is X defined?" in ~30 tokens
+│
+├── tests/
+│   ├── benchmark.ts               ← Real before/after numbers
+│   └── fixtures/
 │
 ├── install.sh                  ← One-command installer (Mac/Linux/Windows WSL)
 ├── package.json
@@ -475,7 +508,7 @@ claude mcp remove context-optimizer --scope global
 
 ---
 
-## The 10 Tools
+## The 13 Tools
 
 ### 1. `compress_logs`
 
@@ -524,7 +557,7 @@ Line 3891: JWT verification failed: token expired
 2. Checks file hash — has it changed since last read?
 3. If unchanged and in session: **zero disk reads**, returns summary
 4. If new/changed: reads file, runs AST chunker (TS/JS/Python) or sliding window (other files)
-5. Scores every chunk against your query using keyword frequency + identifier matching
+5. Scores every chunk against your query with **BM25 + identifier-aware tokenization** — `auth` hits `AuthService`, `validate` hits `validateToken`, rare names outweigh common ones
 6. Returns only chunks that score above zero, ordered by relevance, capped at token budget
 
 **Language support:**
@@ -704,25 +737,102 @@ Saves a snapshot of the current session — which files were read, their hashes,
 
 ---
 
+### 11. `task_manager`
+
+**The problem it solves:** A 30-step task fills the context window before it's done. Without persistence, you start over and lose all decisions and partial progress.
+
+**How it works:**
+Breaks a task into subtasks, persists them to disk along with decisions, observations, and changed files. When the context fills up, `checkpoint` produces a ~300-token *resume prompt*; in a new Claude Code session, `resume` restores the full state in that one tool call.
+
+Supports semantic observation types — `bugfix | feature | decision | discovery | warning` — so resume prompts come back grouped and scannable instead of a flat blob of notes.
+
+```typescript
+task_manager({ action: "create",  title: "...", tasks: [...] })   // start
+task_manager({ action: "complete", task_id: "1", outcome: "..." })// progress
+task_manager({ action: "checkpoint", observations: [...] })       // before context fills
+task_manager({ action: "resume" })                                // in new session
+```
+
+See [The Context Collapse Problem](#the-context-collapse-problem--and-how-we-solve-it) for a full walk-through.
+
+---
+
+### 12. `context_watchdog`
+
+**The problem it solves:** You don't notice the context is full until Claude starts forgetting things. Then you've lost the session.
+
+**How it works:**
+Estimates current context usage from session memory + any extra tokens you pass in, and returns a tiered status:
+
+```
+70%  → ⚡ warning   — good time to checkpoint
+85%  → 🔴 critical  — checkpoint strongly recommended
+95%  → 🚨 emergency — auto-checkpoint, output the resume prompt
+```
+
+At emergency level, if `auto_checkpoint: true` (default), it persists the current task automatically — so even a runaway loop produces a recoverable state.
+
+---
+
+### 13. `symbol_index`
+
+**The problem it solves:** "Where is `validateToken` defined?" — without this tool, Claude reads multiple files to find out. With it, the answer is one row of text.
+
+**How it works:**
+A persistent project-wide index. One scan extracts every function, class, method, interface, type, and enum into `{ name, kind, file, line, signature }` records. Subsequent lookups are local and free. Each file's hash is stored, so re-indexing skips files that haven't changed.
+
+Identifier-aware matching means partial query terms hit camelCase / snake_case components — `auth` finds `AuthService`, `validate` finds `validateToken`.
+
+```typescript
+// One-time (or after large refactors)
+symbol_index({ action: "rebuild" })
+
+// "Where is X defined?" — ~30 tokens / hit
+symbol_index({ action: "find", name: "TokenEstimator" })
+
+// All symbols in one file — replaces a skim-read
+symbol_index({ action: "outline", file_path: "/app/src/auth/AuthService.ts" })
+
+// Stats / sanity check
+symbol_index({ action: "stats" })
+
+// Re-index a single file (e.g. after editing)
+symbol_index({ action: "refresh", file_path: "/app/src/auth/AuthService.ts" })
+```
+
+```
+Input:  "find TokenEstimator across the project"
+Cost without symbol_index: ~18,000 tokens (read every .ts file)
+Cost with symbol_index:    ~44 tokens
+Saved:                     ~100%
+```
+
+---
+
 ## The Technology Choices
 
-### Why SQLite (not a JSON file)?
+### Why a single JSON store (not SQLite)?
 
-SQLite with WAL mode gives us:
-- **Non-blocking reads** — multiple reads never wait for each other
-- **ACID transactions** — cache is never corrupted, even on crash
-- **Indexed lookups** — `O(log n)` file lookup vs `O(n)` JSON scan
-- **Cross-process safety** — multiple Claude windows share one cache
+We started with SQLite (via `better-sqlite3`) and dropped it. Reasons:
+- **Native compilation breaks installs** — `better-sqlite3` needs a working C++ toolchain on every node version. On Apple Silicon, Windows, and several Linux distros, that's where users got stuck.
+- **For our workload, JSON is plenty.** We touch the store on every tool call but the *total* dataset is small — tens of KB. A full parse is ~1 ms.
+- **One store, one truth.** The `JsonStore` is a process-level singleton keyed by file path. Every engine (FileCache, SessionMemory, SnapshotManager, TaskStore, SymbolIndex) shares the same in-memory copy, so writes can never clobber each other.
 
-A JSON file would require full parse + full write on every cache access. For 500 cached files, that's 500 file scans per session.
+What we gave up: indexed lookups and cross-process concurrency. Neither matters for a per-session MCP server.
 
-### Why `better-sqlite3` (not `sql.js`)?
+```
+Old (SQLite, broken):                   New (JsonStore singleton):
 
-`better-sqlite3` is **synchronous**. This matters because:
-- MCP tools are called in Node.js event loop
-- Async SQLite creates unnecessary complexity
-- Synchronous DB is faster for single-process, single-user use cases
-- No deadlock risk, no callback hell, no promise chains
+  FileCache  ──► db.sqlite               FileCache ─┐
+  Session    ──► db.sqlite                          ├──► JsonStore (in-memory)
+  Tasks      ──► db.sqlite               Session   ─┤    ├── flush to JSON
+  Snapshots  ──► db.sqlite               Tasks     ─┤
+                                         Snapshots ─┤
+  Compilation breaks on:                 Symbols   ─┘
+   • Apple Silicon (some)
+   • Windows (most)                     Zero native code. Works on Node 18 → 24.
+   • Alpine / musl
+```
 
 ### Why no `tiktoken`?
 
@@ -746,12 +856,32 @@ A real TypeScript AST parser (`@typescript-eslint/parser`, `ts-morph`) would be 
 - Requires separate parsers per language
 
 Our regex/indent-based approach:
-- 0ms parse time (single-pass line scan)
+- ~0ms parse time (single-pass line scan)
 - Works on 12 languages with one pattern table
 - Handles syntax errors gracefully (returns what it found)
 - Adds zero dependencies
 
 For the use case (extracting function boundaries for token optimization), this accuracy is sufficient.
+
+### Why BM25 + identifier-aware tokenization (not embeddings)?
+
+A naive keyword scorer treats every word equally. So a query like *"auth"* never matches `AuthService` — the literal substring isn't there as a separate word. And a chunk that mentions a common term 50 times wins against one that mentions a rare, perfectly-named identifier once.
+
+We picked the smallest tool that fixes both problems:
+
+- **BM25** — the de-facto baseline for keyword search. Three properties matter:
+  - **IDF**: rare terms (`validateToken`) outweigh common ones (`user`)
+  - **TF saturation** (`k1`): a chunk repeating "user" 50× doesn't beat one with 5× by 10×
+  - **Length normalization** (`b`): long chunks don't automatically dominate
+- **Identifier tokenization** — every code identifier is split into component words:
+  - `loginUser` → `[loginuser, login, user]`
+  - `AuthService` → `[authservice, auth, service]`
+  - `HTTPSConnection` → `[httpsconnection, https, connection]`
+  - `get_user_id` → `[get_user_id, get, user, id]`
+
+  After this, the query *"auth"* hits `AuthService`, *"validate"* hits `validateToken`, and *"refresh tokens"* ranks `refreshTokens()` above unrelated chunks.
+
+We deliberately skipped local embeddings (e.g. `all-MiniLM-L6-v2` via `@xenova/transformers`). They add ~80 MB of weights, ~3s startup, and an `onnxruntime` dependency — for marginal gains over BM25 on short identifier-heavy code queries.
 
 ---
 
@@ -857,11 +987,15 @@ For the use case (extracting function boundaries for token optimization), this a
   You need to find something across the codebase...
             │
             ▼
-  ┌──────────────────────────────────────┐
-  │           bulk_search                │
-  │  pattern: "validateUser"             │
-  │  returns snippets, never full files  │
-  └──────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────┐
+  │  Looking for a SYMBOL definition (function, class)?  │
+  │      → symbol_index({ action: "find", name: "..." }) │
+  │        ~30 tokens / hit. Try this FIRST.             │
+  │                                                      │
+  │  Looking for a free-text PATTERN or usage?           │
+  │      → bulk_search({ pattern: "..." })               │
+  │        Snippets, never full files. 3-tier disclosure.│
+  └──────────────────────────────────────────────────────┘
 
 
   You have a huge log file...
@@ -890,17 +1024,18 @@ This server is designed to consume **almost no CPU or memory**:
 
 | Resource | Usage | Why |
 |----------|-------|-----|
-| Memory   | ~15 MB | SQLite + Node.js baseline |
+| Memory   | ~15 MB | Node.js baseline + small in-memory store |
 | CPU (idle) | 0% | No polling, no watchers |
-| CPU (per call) | <5ms | Hash check = stat syscall |
-| Disk (cache) | ~1 KB per file | Summary + hash only |
-| Startup time | ~50ms | SQLite WAL is instant |
+| CPU (per call) | <5ms typical | Hash + JSON lookup. Symbol-index rebuild ~200ms one-time. |
+| Disk (cache) | tens of KB total | Summaries, hashes, symbols, tasks — all in one JSON file |
+| Startup time | <50ms | Single JSON file load |
 
 **What we deliberately avoided:**
 - `fs.watch` / `chokidar` — continuous file watching is expensive and unnecessary
-- In-memory file content cache — wastes RAM, SQLite is faster for on-demand access
+- In-memory file content cache — wastes RAM; we load file content only on demand
 - Background workers — no threads, no IPC overhead
 - Interval timers — nothing runs between tool calls
+- Native dependencies — install never breaks on a new Node version
 
 ### CPU timeline: what happens between tool calls
 
@@ -913,7 +1048,8 @@ This server is designed to consume **almost no CPU or memory**:
   ─────┬────────────────────────┬─────────────────────┬──────────
        │████████████████████████│                     │
        │  <5ms work             │  0% CPU             │  <5ms
-       │  hash + SQLite + score │  process sleeps     │  work
+       │  hash + JsonStore +    │  process sleeps     │  work
+       │  BM25 score            │                     │
   ─────┴────────────────────────┴─────────────────────┴──────────
 
   The server does nothing between calls.
@@ -925,30 +1061,33 @@ This server is designed to consume **almost no CPU or memory**:
 ## The Technology Stack — Why Each Choice Was Made
 
 ```
-  ┌────────────────────────────────────────────────────────────────┐
-  │  Choice              Alternative       Why we chose this       │
-  ├────────────────────────────────────────────────────────────────┤
-  │  better-sqlite3      sql.js            Synchronous, native,    │
-  │                                        10× faster, WAL mode    │
-  ├────────────────────────────────────────────────────────────────┤
-  │  chars/4 estimator   tiktoken          0ms, 0 deps, 10%        │
-  │                                        accuracy is enough      │
-  ├────────────────────────────────────────────────────────────────┤
-  │  regex AST parser    ts-morph          0ms parse, 12 langs,    │
-  │                      @typescript-eslint survives syntax errors  │
-  ├────────────────────────────────────────────────────────────────┤
-  │  stat hash fast-path full file hash    1 syscall vs file read  │
-  │  (mtime + size)                        99% of the time correct │
-  ├────────────────────────────────────────────────────────────────┤
-  │  SQLite WAL mode     default journal   Non-blocking reads,     │
-  │                                        concurrent windows safe  │
-  ├────────────────────────────────────────────────────────────────┤
-  │  stdio transport     HTTP transport    No port conflicts,       │
-  │                                        no auth needed, simpler  │
-  ├────────────────────────────────────────────────────────────────┤
-  │  npx distribution    global install    Zero setup, always      │
-  │                                        latest, works offline   │
-  └────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────┐
+  │  Choice              Alternative        Why we chose this        │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  JSON store          SQLite             Zero native compile,     │
+  │  (singleton)         (better-sqlite3)   works on Node 18 → 24    │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  chars/4 estimator   tiktoken           0ms, 0 deps, 10%         │
+  │                                         accuracy is enough       │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  regex AST parser    ts-morph           ~0ms parse, 12 langs,    │
+  │                      @typescript-eslint survives syntax errors    │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  BM25 + identifier   embeddings         Code-aware, 0 deps,      │
+  │  tokenization        (MiniLM, etc.)     no model download        │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  stat hash fast-path full file hash     1 syscall vs file read   │
+  │  (mtime + size)                         99% of the time correct  │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  Persistent symbol   ripgrep / live     One-time scan,           │
+  │  index               regrep             ~30 tokens / lookup      │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  stdio transport     HTTP transport     No port conflicts,       │
+  │                                         no auth needed, simpler  │
+  ├──────────────────────────────────────────────────────────────────┤
+  │  npx distribution    global install     Zero setup, always       │
+  │                                         latest, works offline    │
+  └──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Contributing
@@ -1092,25 +1231,26 @@ task_manager({ action: "resume" })
 ## The Optimization Hierarchy
 
 ```
-  Highest impact                                      Lowest impact
-       │                                                    │
-       ▼                                                    ▼
-  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-  │ recall   │  │ project  │  │ compress │  │ smart    │  │ context  │
-  │ _file    │  │ _map     │  │ _logs    │  │ _read    │  │ _budget  │
-  │          │  │          │  │          │  │          │  │          │
-  │ 100%     │  │ 99%      │  │ 95-99%   │  │ 70-90%   │  │ advisory │
-  │ savings  │  │ savings  │  │ savings  │  │ savings  │  │ only     │
-  │ for      │  │ vs       │  │ vs full  │  │ per      │  │          │
-  │ unchanged│  │ reading  │  │ log      │  │ query    │  │          │
-  │ files    │  │ all files│  │ file     │  │          │  │          │
-  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+  Highest impact                                                Lowest impact
+       │                                                              │
+       ▼                                                              ▼
+  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+  │ recall   │  │ symbol   │  │ project  │  │ compress │  │ smart    │  │ context  │
+  │ _file    │  │ _index   │  │ _map     │  │ _logs    │  │ _read    │  │ _budget  │
+  │          │  │          │  │          │  │          │  │          │  │          │
+  │ 100%     │  │ ~100%    │  │ 99%      │  │ 95–99%   │  │ 70–95%   │  │ advisory │
+  │ for      │  │ vs       │  │ vs       │  │ vs full  │  │ per      │  │ +        │
+  │ unchanged│  │ reading  │  │ reading  │  │ log      │  │ query    │  │ planning │
+  │ files    │  │ source   │  │ all files│  │ file     │  │          │  │          │
+  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
 
   Use recall_file FIRST — if file is unchanged, you're done.
+  Use symbol_index for "where is X defined?" — never read a file blindly.
   Use project_map ONCE per session to orient yourself.
   Use compress_logs instead of reading logs directly.
   Use smart_read for everything else.
-  Use context_budget when something feels slow or forgetful.
+  Use context_budget + context_watchdog when sessions get long.
+  Use task_manager + checkpoint to survive context collapse on big tasks.
 ```
 
 ---
@@ -1189,4 +1329,3 @@ bulk_search({ pattern: "useEffect", file_extensions: [".tsx"], detail_level: "li
 ---
 
 *Built because Claude is powerful, but token waste is real. This project exists to make Claude Code sustainable at scale.*
-# claude-context-optimizer

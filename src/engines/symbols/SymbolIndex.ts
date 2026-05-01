@@ -9,6 +9,7 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { extname, join, relative, resolve } from 'path';
 import { JsonStore } from '../store/JsonStore.js';
 import { HashUtil } from '../../utils/hash/HashUtil.js';
+import { IdentifierTokenizer } from '../../utils/text/IdentifierTokenizer.js';
 import { TypeScriptParser } from '../semantic/parsers/TypeScriptParser.js';
 import { PythonParser } from '../semantic/parsers/PythonParser.js';
 import { GenericParser } from '../semantic/parsers/GenericParser.js';
@@ -115,18 +116,23 @@ export class SymbolIndex {
     return { changed: true, symbols: symbols.length };
   }
 
-  // Look up symbols by name. Returns exact matches first, then case-insensitive
-  // substring matches. Caller can filter by kind/language.
+  // Look up symbols by name. Buckets, in order:
+  //   1. Exact (case-insensitive name match)
+  //   2. Substring match (current behavior)
+  //   3. Identifier-token match — query terms map onto camelCase / snake_case
+  //      components of the symbol name (so "auth" matches "AuthService").
   query(
     name: string,
     opts: { kind?: SymbolKind; language?: string; limit?: number; rootPath?: string } = {},
   ): SymbolEntry[] {
-    const all   = this.store.all(T_SYMBOLS) as unknown as SymbolEntry[];
-    const lower = name.toLowerCase();
-    const limit = opts.limit ?? 20;
+    const all     = this.store.all(T_SYMBOLS) as unknown as SymbolEntry[];
+    const lower   = name.toLowerCase();
+    const limit   = opts.limit ?? 20;
+    const qTokens = IdentifierTokenizer.tokenizeQuery(name);
 
-    const exact:   SymbolEntry[] = [];
-    const partial: SymbolEntry[] = [];
+    const exact:    SymbolEntry[] = [];
+    const partial:  SymbolEntry[] = [];
+    const tokenHit: SymbolEntry[] = [];
 
     for (const sym of all) {
       if (opts.kind && sym.kind !== opts.kind) continue;
@@ -137,16 +143,25 @@ export class SymbolIndex {
       }
 
       const symLower = sym.name.toLowerCase();
-      if (symLower === lower) exact.push(sym);
-      else if (symLower.includes(lower)) partial.push(sym);
+      if (symLower === lower) {
+        exact.push(sym);
+      } else if (symLower.includes(lower)) {
+        partial.push(sym);
+      } else {
+        // Identifier-aware fuzzy match — split symbol name on case/_ and see
+        // if any query term hits a component.
+        const symTokens = new Set(IdentifierTokenizer.tokenize(sym.name));
+        if (qTokens.some(q => symTokens.has(q))) tokenHit.push(sym);
+      }
     }
 
     // Methods deprioritized vs top-level definitions for the same name
     const rank = (s: SymbolEntry) => (s.kind === 'method' ? 1 : 0);
     exact.sort((a, b) => rank(a) - rank(b));
     partial.sort((a, b) => rank(a) - rank(b));
+    tokenHit.sort((a, b) => rank(a) - rank(b));
 
-    return [...exact, ...partial].slice(0, limit);
+    return [...exact, ...partial, ...tokenHit].slice(0, limit);
   }
 
   // Symbols defined inside a single file — quick "outline" view.
