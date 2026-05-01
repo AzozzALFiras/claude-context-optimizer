@@ -33,7 +33,18 @@ export class SmartReadTool {
     const fresh        = this.cache.getIfFresh(file_path);
 
     if (sessionEntry && fresh && sessionEntry.fileHash === fresh.hash) {
-      // File is unchanged — return relevant chunks without re-reading from disk
+      // File is unchanged — return relevant chunks without re-reading from disk.
+      // For small files, returning chunks (which can include duplicate AST class
+      // bodies) inflates output past the original — yielding negative savings.
+      // Mirror the small-file path used on first read.
+      if (fresh.tokenEstimate <= max_tokens) {
+        return {
+          success:    true,
+          content:    SmartReadTool.noMatchMessage(file_path, fresh.summary, sessionEntry),
+          tokensSaved: sessionEntry.tokenCount,
+        };
+      }
+
       const chunks  = this.index.query(file_path, query, max_tokens);
       const ranked  = RelevanceScorer.rankChunks(chunks, query);
       const topChunks = SmartReadTool.fitInBudget(ranked, max_tokens);
@@ -46,12 +57,11 @@ export class SmartReadTool {
         };
       }
 
+      const chunkTokens = TokenEstimator.estimateCode(topChunks.map(c => c.content).join('\n'));
       return {
         success:     true,
         content:     SmartReadTool.formatChunks(topChunks, file_path, fresh, true),
-        tokensSaved: sessionEntry.tokenCount - TokenEstimator.estimateCode(
-          topChunks.map(c => c.content).join('\n'),
-        ),
+        tokensSaved: Math.max(0, sessionEntry.tokenCount - chunkTokens),
       };
     }
 
@@ -88,12 +98,11 @@ export class SmartReadTool {
       };
     }
 
+    const chunkTokens = TokenEstimator.estimateCode(topChunks.map(c => c.content).join('\n'));
     return {
       success:     true,
       content:     SmartReadTool.formatChunks(topChunks, file_path, record, false),
-      tokensSaved: record.tokenEstimate - TokenEstimator.estimateCode(
-        topChunks.map(c => c.content).join('\n'),
-      ),
+      tokensSaved: Math.max(0, record.tokenEstimate - chunkTokens),
     };
   }
 

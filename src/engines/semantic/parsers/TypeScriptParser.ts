@@ -87,15 +87,34 @@ export class TypeScriptParser {
     const block: string[] = [lines[startIdx]];
     let depth = 0;
     let started = false;
+    const max = Math.min(startIdx + 200, lines.length);
 
-    for (let i = startIdx; i < Math.min(startIdx + 200, lines.length); i++) {
+    // Account for braces on the starting line so single-line blocks like
+    // `function foo() { return 1; }` close correctly.
+    for (const ch of lines[startIdx]) {
+      if (ch === '{') { depth++; started = true; }
+      else if (ch === '}') { depth--; }
+    }
+    if (started && depth <= 0) return block.join('\n');
+
+    for (let i = startIdx + 1; i < max; i++) {
       const line = lines[i];
       for (const ch of line) {
         if (ch === '{') { depth++; started = true; }
-        if (ch === '}') { depth--; }
+        else if (ch === '}') { depth--; }
       }
-      if (i > startIdx) block.push(line);
-      if (started && depth <= 0) break;
+      block.push(line);
+      if (started && depth <= 0) return block.join('\n');
+      // No braces ever appeared and we're past the signature — likely an
+      // arrow expression with no body braces (`const f = x => x*2`).
+      // Stop at the first line ending in `;` or a blank line so we don't
+      // greedily swallow 200 unrelated lines.
+      if (!started && i > startIdx) {
+        const trimmed = line.trim();
+        if (trimmed === '' || trimmed.endsWith(';')) {
+          return block.join('\n');
+        }
+      }
     }
 
     return block.join('\n');

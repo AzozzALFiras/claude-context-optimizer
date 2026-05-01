@@ -12,21 +12,33 @@ export interface StoreRecord {
   [key: string]: unknown;
 }
 
+// Per-process singletons keyed by absolute file path.
+// Without this, multiple JsonStore instances pointing at the same file each hold
+// their own in-memory snapshot and clobber each other on write — losing tasks,
+// snapshots, sessions, and cache data.
+const INSTANCES = new Map<string, JsonStore>();
+
 export class JsonStore {
   private filePath: string;
-  private data: Record<string, StoreRecord>;
+  private data: Record<string, StoreRecord> = {};
   private dirty: boolean = false;
 
   constructor(filename: string) {
     this.filePath = join(PlatformUtil.getCacheDir(), filename);
+    const existing = INSTANCES.get(this.filePath);
+    if (existing) return existing;
     this.data = this.load();
+    INSTANCES.set(this.filePath, this);
   }
 
   private load(): Record<string, StoreRecord> {
     try {
       if (existsSync(this.filePath)) {
         const raw = readFileSync(this.filePath, 'utf8');
-        return JSON.parse(raw) as Record<string, StoreRecord>;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, StoreRecord>;
+        }
       }
     } catch {
       // corrupted file — start fresh

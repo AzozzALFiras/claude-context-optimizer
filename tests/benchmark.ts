@@ -4,17 +4,22 @@
 // Real before/after benchmark — measures actual token savings per tool.
 
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-// Tools under test
-import { CompressLogsTool }      from '../src/tools/compress-logs/CompressLogsTool.js';
-import { SmartReadTool }         from '../src/tools/smart-read/SmartReadTool.js';
-import { FunctionExtractorTool } from '../src/tools/function-extractor/FunctionExtractorTool.js';
-import { ProjectMapTool }        from '../src/tools/project-map/ProjectMapTool.js';
-import { BulkSearchTool }        from '../src/tools/bulk-search/BulkSearchTool.js';
-import { CacheManager }          from '../src/engines/cache/CacheManager.js';
-import { SessionMemory }         from '../src/engines/session/SessionMemory.js';
-import { TokenEstimator }        from '../src/utils/token/TokenEstimator.js';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Imported from compiled dist/ — keeps this benchmark runnable under plain
+// node without TS loader gymnastics (the src/ files use `.js` extension
+// imports that ts-node --esm cannot resolve to .ts files).
+import { CompressLogsTool }      from '../dist/tools/compress-logs/CompressLogsTool.js';
+import { SmartReadTool }         from '../dist/tools/smart-read/SmartReadTool.js';
+import { FunctionExtractorTool } from '../dist/tools/function-extractor/FunctionExtractorTool.js';
+import { ProjectMapTool }        from '../dist/tools/project-map/ProjectMapTool.js';
+import { BulkSearchTool }        from '../dist/tools/bulk-search/BulkSearchTool.js';
+import { CacheManager }          from '../dist/engines/cache/CacheManager.js';
+import { SessionMemory }         from '../dist/engines/session/SessionMemory.js';
+import { TokenEstimator }        from '../dist/utils/token/TokenEstimator.js';
 
 const FIXTURES = join(__dirname, 'fixtures');
 const LOG_FILE = join(FIXTURES, 'sample.log');
